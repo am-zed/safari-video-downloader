@@ -1,4 +1,4 @@
-# safari-video-downloader
+# safari-video-downloader - WORKING DOWNLOADER
 Download videos from Safari Books Online at ease.
 
 Run `pip3 install --user -r requirements.txt` to install the required packages.
