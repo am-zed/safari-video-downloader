@@ -28,8 +28,10 @@ class SafariDownloader:
         soup = BeautifulSoup(req.text, 'html.parser')
         self.topics = soup.find_all('li', class_='toc-level-1') # top-level topic titles
 
-    def validify(self, filename):
-        valid_chars = "-_./ %s%s" % (string.ascii_letters, string.digits)
+    def validify(self, filename, isdir=False):
+        valid_chars = "-_. %s%s" % (string.ascii_letters, string.digits)
+        if isdir:
+            valid_chars = "-_./ %s%s" % (string.ascii_letters, string.digits)
         valid_chars = frozenset(valid_chars)
         # The unicodedata.normalize call replaces accented characters with the unaccented equivalent,
         # which is better than simply stripping them out. After that all disallowed characters are removed.
@@ -41,20 +43,28 @@ class SafariDownloader:
             topic_name = topic.a.text
             # Creating folder to put the videos in
             save_folder = '{}/{}'.format(self.output_folder, topic_name)
-            #save_folder = save_folder.replace(':', '').replace(' .*', '-')
-            save_folder = self.validify(save_folder)
+            save_folder = self.validify(save_folder, True)
             os.makedirs(save_folder, exist_ok=True)
             for index, video in enumerate(topic.ol.find_all('a')):
                 video_name = '{:03d}-{}'.format(index + 1, video.text)
                 video_name = self.validify(video_name)
                 video_url = video.get('href')
-                video_out = '{}/{}'.format(save_folder, video_name)
+                video_out = '{}/{}.mp4'.format(save_folder, video_name)
                 # Check if file already exists
                 if os.path.isfile(video_out):
                     print("File {} already exists! Skipping...".format(video_out))
                     continue
                 print("Downloading {} ...".format(video_name))
-                subprocess.run([self.downloader_path, "--cookie", self.cookies, "--output", video_out, video_url, "--ignore-config", "-f", "(mp4)[width=960][height=540]", "--verbose"])
+
+                #supported_formats = "best"
+                supported_formats = "(mp4)[width=960][height=540]/(mp4)[width=966][height=540]/(mp4)[width=960][height=540]/(mp4)[width=854][height=480]/(mp4)[width=852][height=480]/(mp4)[width=720][height=540]"
+
+                try:
+                    subprocess.check_output([self.downloader_path, "--cookie", self.cookies, "--output", video_out, video_url, "--ignore-config", "-f", supported_formats, "--verbose"], stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    if e.output.decode("utf-8").find("requested format not available"):
+                        # catch available formats and add to supported_formats string than re-run
+                        subprocess.run([self.downloader_path, "--cookie", self.cookies, "--output", video_out, video_url, "--ignore-config", "-F"])
 
 
 if __name__ == '__main__':
